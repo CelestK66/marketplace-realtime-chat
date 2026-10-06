@@ -1,0 +1,11 @@
+{
+  "name": "marketplace-realtime-chat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "test": "node --import tsx test/chat-room.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "tsx": "^4.19.2", "typescript": "^5.6.3", "zod": "^3.23.8" }
+}
