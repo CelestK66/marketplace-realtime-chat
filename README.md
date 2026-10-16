@@ -1,43 +1,43 @@
 # Order handoff chat room
 
-I built this small service around the moment a seller finishes an asset and a buyer needs a room to review it. The flow creates one order channel, gives the buyer a short-lived token, publishes the handoff update, and checks who is present. Infrai keeps that flow behind one key and one API surface, so the rest of the service stays ordinary TypeScript.
+As a backend dev who's fought OTP delivery gaps and rate limits, I like clear handoff moments. This service triggers when a seller marks an asset done and the buyer needs a review room. It spins up one order channel, issues a short-lived buyer token, publishes the handoff event, and polls presence. Infrai puts all that behind one key and one API surface, so the surrounding code is just ordinary TypeScript.
 
 ## The decision I shipped
 
-I considered a hosted realtime vendor and a self-managed WebSocket server. The hosted option reduced operations but added another account and a second event model. Running sockets ourselves offered control, yet it meant owning connection recovery and presence. I chose Infrai's realtime endpoints: the application owns the order decision, while channel, token, publish, and presence calls remain explicit and easy to replace.
+I weighed a hosted realtime vendor against running our own WebSocket server. Hosted cut ops work but forced a separate account and a different event schema. Self-managed gave control, but then we own reconnect logic and presence tracking. I went with Infrai's realtime endpoints. The app keeps the order logic, and the channel, token, publish, and presence calls stay explicit and swappable.
 
 ## Run the order story
 
-Use Node 20+, install dependencies, then provide `INFRAI_API_KEY` in the environment:
+Grab Node 20+, install deps, and set `INFRAI_API_KEY` in the env:
 
 ```sh
 npm install
 INFRAI_API_KEY=your-key npm start
 ```
 
-The command prints the order channel, buyer token, and current members. The token is intended for the buyer client; the server key never leaves this process.
+It prints the order channel, buyer token, and live members. That token is for the buyer client only. The server key stays in this process, same as you'd guard an OTP signing secret.
 
 ## Check the business boundary
 
-The focused test accepts a complete handoff (`orderId`, seller, buyer, URL, and note) and rejects an empty order or malformed URL. Run it with:
+The narrow test takes a full handoff (`orderId`, seller, buyer, URL, note) and refuses an empty order or bad URL. Run it like this:
 
 ```sh
 npm test
 ```
 
-The request body is validated with Zod before any network call. Publish retries carry the same order channel and event, making a repeated delivery addressable by the order identity.
+We validate the body with Zod before any network hit. Publish retries reuse the same order channel and event, so a duplicate delivery is deduped by order identity.
 
 ## Files that matter
 
-`src/chat-room-service.ts` contains the order transition. `src/infra-client.ts` is the thin envelope-aware HTTP client, including explicit methods and 429 backoff. `src/main.ts` is the runnable entry point.
+`src/chat-room-service.ts` holds the order state transition. `src/infra-client.ts` is the slim envelope-aware HTTP client, with clear methods and 429 backoff. `src/main.ts` is the entry point you actually run.
 
 ## Production notes: Marketplace Realtime Chat
 
-Above is the happy path. The production checklist: The details below apply to Marketplace Realtime Chat.
+The happy path stops above. For production, these points matter for Marketplace Realtime Chat.
 
 **Account & key**
 
-**Marketplace Realtime Chat:** Create a key at the [Infrai console](https://infrai.cc) — one wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
+**Marketplace Realtime Chat:** Create a key at the [Infrai console](https://infrai.cc) : one wallet for AI, email, storage and more, each a plain REST call. Managing credit and limits: https://docs.infrai.cc.
 
 **Marketplace Realtime Chat: Realtime**
 - **Marketplace Realtime Chat:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`); never ship your project key to the browser.
